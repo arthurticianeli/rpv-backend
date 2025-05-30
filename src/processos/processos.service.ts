@@ -27,12 +27,12 @@ export class ProcessosService {
     return this.prisma.processo.findUnique({ where: { numero } });
   }
 
-async update(numero: string, data: UpdateProcessoDto) {
-  if (!data || Object.keys(data).length === 0) {
-    throw new Error('Argumento "data" é obrigatório e não pode ser vazio.');
+  async update(numero: string, data: UpdateProcessoDto) {
+    if (!data || Object.keys(data).length === 0) {
+      throw new Error('Argumento "data" é obrigatório e não pode ser vazio.');
+    }
+    return this.prisma.processo.update({ where: { numero }, data });
   }
-  return this.prisma.processo.update({ where: { numero }, data });
-}
 
   async remove(numero: string) {
     return this.prisma.processo.delete({ where: { numero } });
@@ -239,6 +239,8 @@ async update(numero: string, data: UpdateProcessoDto) {
 
     for (const proc of processos) {
       const campos = this.extrairInformacoes(proc.ultimaMovimentacao || '');
+      console.log(`Processo ${proc.numero} - Movimentação:`, proc.ultimaMovimentacao);
+      console.log(`Campos extraídos:`, campos);
 
       const camposValidos = Object.fromEntries(
         Object.entries(campos).filter(([, v]) => v !== undefined)
@@ -260,10 +262,11 @@ async update(numero: string, data: UpdateProcessoDto) {
   private extrairInformacoes(mov: string) {
     if (!mov) return {};
 
-    const dataDepositoMatch = mov.match(/Data Dep[oó]sito: (\d{2}\/\d{2}\/\d{4})/i);
-    const valorDepositoMatch = mov.match(/Valor Dep[oó]sito: R\$ ([\d.,]+)/i);
-    const dataDevolucaoMatch = mov.match(/Data da Devolu[aã]o: (\d{2}\/\d{2}\/\d{4})/i);
-    const valorDevolvidoMatch = mov.match(/Valor Devolvido: R\$ ([\d.,]+)/i);
+    const dataDepositoMatch = mov.match(/Data Dep.*?: (\d{2}\/\d{2}\/\d{4})/i);
+    const valorDepositoMatch = mov.match(/Valor Dep.*?: R\$ ([\d.,]+)/i);
+    const dataDevolucaoMatch = mov.match(/Data da Devol.*?: (\d{2}\/\d{2}\/\d{4})/i);
+    const valorDevolvidoMatch = mov.match(/Valor Devol.*?: R\$ ([\d.,]+)/i);
+
 
     const parseValor = (v: string | undefined) =>
       v ? parseFloat(v.replace(/\./g, '').replace(',', '.')) : undefined;
