@@ -27,9 +27,12 @@ export class ProcessosService {
     return this.prisma.processo.findUnique({ where: { numero } });
   }
 
-  async update(numero: string, data: UpdateProcessoDto) {
-    return this.prisma.processo.update({ where: { numero }, data });
+async update(numero: string, data: UpdateProcessoDto) {
+  if (!data || Object.keys(data).length === 0) {
+    throw new Error('Argumento "data" é obrigatório e não pode ser vazio.');
   }
+  return this.prisma.processo.update({ where: { numero }, data });
+}
 
   async remove(numero: string) {
     return this.prisma.processo.delete({ where: { numero } });
@@ -226,5 +229,55 @@ export class ProcessosService {
     const ms = Math.abs(data2.getTime() - data1.getTime());
     return Math.floor(ms / (1000 * 60 * 60 * 24));
   }
+
+  async corrigirMovimentacoes() {
+    const processos = await this.prisma.processo.findMany({
+      where: {
+        ultimaMovimentacao: { contains: 'Valor Dep' }, // restringe a quem precisa
+      },
+    });
+
+    for (const proc of processos) {
+      const campos = this.extrairInformacoes(proc.ultimaMovimentacao || '');
+
+      const camposValidos = Object.fromEntries(
+        Object.entries(campos).filter(([, v]) => v !== undefined)
+      );
+      console.log(`Atualizando processo ${proc.numero} com campos:`, camposValidos);
+
+      if (Object.keys(camposValidos).length > 0) {
+        await this.prisma.processo.update({
+          where: { numero: proc.numero },
+          data: camposValidos,
+        });
+      }
+    }
+
+    return { atualizado: processos.length };
+  }
+
+
+  private extrairInformacoes(mov: string) {
+    if (!mov) return {};
+
+    const dataDepositoMatch = mov.match(/Data Dep[oó]sito: (\d{2}\/\d{2}\/\d{4})/i);
+    const valorDepositoMatch = mov.match(/Valor Dep[oó]sito: R\$ ([\d.,]+)/i);
+    const dataDevolucaoMatch = mov.match(/Data da Devolu[aã]o: (\d{2}\/\d{2}\/\d{4})/i);
+    const valorDevolvidoMatch = mov.match(/Valor Devolvido: R\$ ([\d.,]+)/i);
+
+    const parseValor = (v: string | undefined) =>
+      v ? parseFloat(v.replace(/\./g, '').replace(',', '.')) : undefined;
+
+    const parseData = (d: string | undefined) =>
+      d ? new Date(d.split('/').reverse().join('-')) : undefined;
+
+    return {
+      dataDeposito: parseData(dataDepositoMatch?.[1]),
+      valorDeposito: parseValor(valorDepositoMatch?.[1]),
+      dataDevolucao: parseData(dataDevolucaoMatch?.[1]),
+      valorDevolvido: parseValor(valorDevolvidoMatch?.[1]),
+    };
+  }
+
 
 }
