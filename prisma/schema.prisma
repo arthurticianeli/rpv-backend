@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Processo {
+  id                Int      @id @default(autoincrement())
+  numero            String   @unique
+  ultimaMovimentacao String
+  vara              String
+  requerente        String
+  requerido         String
+  dataDeposito      DateTime?
+  valorDeposito     Decimal? @db.Decimal(10,2)
+  dataDevolucao     DateTime?
+  valorDevolvido    Decimal? @db.Decimal(10,2)
+  pago              Boolean  @default(false)
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
