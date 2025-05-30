@@ -174,4 +174,57 @@ export class ProcessosService {
 
     return res.send(buffer);
   }
+
+  async listarTodosComEstimativa() {
+    const processos = await this.prisma.processo.findMany();
+
+    const valorizacoes: number[] = [];
+
+    for (const proc of processos) {
+      if (
+        proc.valorDeposito &&
+        proc.valorDevolvido &&
+        proc.dataDeposito &&
+        proc.dataDevolucao
+      ) {
+        const dias = this.diasEntre(proc.dataDeposito, proc.dataDevolucao);
+        if (dias > 0 && Number(proc.valorDeposito) > 0) {
+          const taxa = Number(proc.valorDevolvido) / Number(proc.valorDeposito);
+          const anual = Math.pow(taxa, 365 / dias) - 1; // crescimento composto anual
+          if (isFinite(anual) && anual > 0) {
+            valorizacoes.push(anual);
+          }
+        }
+      }
+    }
+
+    const mediaAnual = valorizacoes.length
+      ? valorizacoes.reduce((a, b) => a + b, 0) / valorizacoes.length
+      : 0;
+
+    const hoje = new Date();
+
+    const processosComEstimativa = processos.map((proc) => {
+      let valorAtualizado: number | null = null;
+
+      if (proc.valorDeposito && proc.dataDeposito && !proc.pago) {
+        const diasDesdeDeposito = this.diasEntre(proc.dataDeposito, hoje);
+        const fator = Math.pow(1 + mediaAnual, diasDesdeDeposito / 365);
+        valorAtualizado = parseFloat((Number(proc.valorDeposito) * fator).toFixed(2));
+      }
+
+      return {
+        ...proc,
+        valorEstimadoAtual: valorAtualizado,
+      };
+    });
+
+    return processosComEstimativa;
+  }
+
+  private diasEntre(data1: Date, data2: Date): number {
+    const ms = Math.abs(data2.getTime() - data1.getTime());
+    return Math.floor(ms / (1000 * 60 * 60 * 24));
+  }
+
 }

@@ -28,8 +28,8 @@ export class ProcessosController {
   }
 
   @Get()
-  findAll() {
-    return this.processosService.findAll();
+  async listarComEstimativa() {
+    return this.processosService.listarTodosComEstimativa();
   }
 
   @Get(':numero')
